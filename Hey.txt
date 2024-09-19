@@ -1,0 +1,266 @@
+--!nonstrict
+
+--------------------------------------------------
+--[[ ROBLOX SERVICES ]]--
+local ContentProvider = game:GetService("ContentProvider")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+--[[ LOCAL VARIABLES ]]--
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
+local CharacterAppearance = LocalPlayer:WaitForChild("CharacterAppearance")
+
+local NetworkManagement = ReplicatedStorage.NetworkManagement
+local RemoteFunction = NetworkManagement.RemoteFunction
+local CharacterCustomization = RemoteFunction.CharacterCustomization
+
+local RemoteEvent = NetworkManagement.RemoteEvent
+local UpdatePlayerWeapon = RemoteEvent.UpdatePlayerWeapon
+
+local Camera = workspace.CurrentCamera
+
+local ScreenGui = script.Parent
+local LoadingScreen = ScreenGui.LoadingScreen
+local RaceChoice = ScreenGui.RaceChoice
+local ScreenOptions = ScreenGui.ScreenOptions
+local CharacterSelection = ScreenGui.CharacterSelection
+local DoneButton = CharacterSelection.DoneButton
+
+local CameraManagement = workspace.CameraManagement
+local MenuCamera = CameraManagement:WaitForChild("MenuCamera")
+local CharacterCamera = CameraManagement:WaitForChild("CharacterCamera")
+
+local CHARACTER_CUSTOMIZATION = false
+local MOUSE_CONNECTION = nil
+local CHARACTER_CONNECTION = {}
+
+--------------------------------------------------
+
+local function AnimateCharacterSelection()
+	local CameraTransitionInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
+	local Cache = {}
+	local CameraTransition = TweenService:Create(Camera, CameraTransitionInfo, {CFrame = CharacterCamera.CFrame})
+
+	CameraTransition:Play()
+	CameraTransition.Completed:Connect(function(playbackState: Enum.PlaybackState)
+		local FramePositionInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
+		local FramePosition = TweenService:Create(CharacterSelection, FramePositionInfo, {Position = UDim2.fromScale(0.5, 0.525)})
+
+		SmoothCameraFollow(CharacterCamera)
+
+		FramePosition:Play()
+		FramePosition.Completed:Wait()
+
+		for _, connection: any in ipairs(CHARACTER_CONNECTION) do
+			connection:Disconnect()
+			connection = nil
+		end
+
+		for _, instanceObject: any in ipairs(CharacterSelection:GetDescendants()) do
+			if instanceObject:IsA("TextButton") then
+				table.insert(CHARACTER_CONNECTION, instanceObject.MouseButton1Click:Connect(function()
+					if instanceObject.Parent:FindFirstChild("Index") then
+						local InstanceName = instanceObject.Name
+						local InstanceAppearanceName = instanceObject.Parent.Name
+
+						local TextLabel = instanceObject.Parent.Index
+						TextLabel.Text = CharacterCustomization:InvokeServer(InstanceName, InstanceAppearanceName)
+					end
+				end))
+			end
+		end
+
+		DoneButton.MouseButton1Click:Once(function(...: any)
+			local BackTransitionInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
+			local BackTransition = TweenService:Create(Camera, BackTransitionInfo, {CFrame = MenuCamera.CFrame})
+
+			local BackPositionInfo = TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
+			local BackPosition = TweenService:Create(CharacterSelection, BackPositionInfo, {Position = UDim2.fromScale(0.5, 1.5)})
+			BackPosition:Play()
+
+			for _, connection: any in ipairs(CHARACTER_CONNECTION) do
+				connection:Disconnect()
+				connection = nil
+			end
+
+			for _, connection in ipairs(Cache) do
+				connection:Disconnect()
+				connection = nil
+			end
+
+			MOUSE_CONNECTION:Disconnect()
+			MOUSE_CONNECTION = nil
+
+			BackTransition:Play()
+			BackTransition.Completed:Connect(AnimateScreenOptions)
+		end)
+
+		table.insert(Cache, DoneButton.MouseEnter:Connect(function(x: number, y: number)
+			DoneButton.TextColor3 = Color3.fromRGB(110, 255, 144)
+		end))
+
+		table.insert(Cache, DoneButton.MouseLeave:Connect(function(x: number, y: number)
+			DoneButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		end))
+	end)
+end
+
+function AnimateScreenOptions()
+	local InstanceTweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
+	local Cache = {}
+
+	if MOUSE_CONNECTION == nil then
+		SmoothCameraFollow(MenuCamera)
+	end
+
+	for _, instanceObject: any in ipairs(ScreenOptions:GetChildren()) do
+		if instanceObject:IsA("TextButton") then
+			instanceObject.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+			local InstancePositionTween = TweenService:Create(instanceObject, InstanceTweenInfo, {Position = UDim2.fromScale(0.5, 0.5)})
+			InstancePositionTween:Play()
+			InstancePositionTween.Completed:Connect(function(playbackState: Enum.PlaybackState)
+
+				table.insert(Cache, instanceObject.MouseButton1Click:Connect(function(...: any)
+					for _, connection in ipairs(Cache) do
+						connection:Disconnect()
+						connection = nil
+					end
+
+					for _, children: any in ipairs(ScreenOptions:GetChildren()) do
+						if children:IsA("TextButton") then
+							local InstancePosition = children:GetAttribute("PositionX")
+							local InstancePositionTween = TweenService:Create(children, InstanceTweenInfo, {Position = UDim2.fromScale(InstancePosition, 0.5)})
+							InstancePositionTween:Play()
+
+							if instanceObject.Name ~= "CharacterButton" then
+								InstancePositionTween.Completed:Wait()
+							end
+						end
+					end
+
+					MOUSE_CONNECTION:Disconnect()
+					MOUSE_CONNECTION = nil
+
+					if instanceObject.Name ~= "CharacterButton" then
+						Camera.CameraType = Enum.CameraType.Custom
+						Camera.CameraSubject = Humanoid
+
+						Character:PivotTo(workspace.StartingPoint.CFrame)
+						RemoteEvent.UpdatePlayerSpeed:FireServer()
+					else
+						DoneButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+						AnimateCharacterSelection()
+					end
+				end))
+
+				table.insert(Cache, instanceObject.MouseEnter:Connect(function(x: number, y: number)
+					instanceObject.TextColor3 = Color3.fromRGB(110, 255, 144)
+				end))
+
+				table.insert(Cache, instanceObject.MouseLeave:Connect(function(x: number, y: number)
+					instanceObject.TextColor3 = Color3.fromRGB(255, 255, 255)
+				end))
+			end)
+		end
+	end
+end
+
+local function AnimateRaceChoice()
+	local AnimationCache = {}
+
+	for _, instanceObject: any in ipairs(RaceChoice:GetChildren()) do
+		if instanceObject:IsA("Frame") then
+			local ViewportFrame = instanceObject.Frame.ViewportFrame
+			local TextButton = instanceObject.TextButton
+			local InstanceAnimation = nil
+
+			InstanceAnimation = coroutine.create(function(...: any)
+				local PrimaryComponent = ViewportFrame.WorldModel.PrimaryComponent
+
+				local X = math.clamp(PrimaryComponent.Rotation.X, -90, 0.05)
+				local Y = math.clamp(PrimaryComponent.Rotation.Y, -90, 0.05)
+				local Z = math.clamp(PrimaryComponent.Rotation.Z, -90, 0.05)
+
+				table.insert(AnimationCache, InstanceAnimation)
+
+				while task.wait() do
+					PrimaryComponent.CFrame = PrimaryComponent.CFrame * CFrame.fromEulerAnglesXYZ(0, Y, Z)
+				end
+			end)
+
+			coroutine.resume(InstanceAnimation)
+
+			TextButton.MouseButton1Click:Once(function(...: any)
+				for _, runningAnimation: any in ipairs(AnimationCache) do
+					coroutine.close(runningAnimation)
+				end
+
+				RaceChoice.Visible = false
+				UpdatePlayerWeapon:FireServer(instanceObject.Name)
+
+				if not CHARACTER_CUSTOMIZATION then
+					for _, children in ipairs(CharacterAppearance:GetChildren()) do
+						CharacterCustomization:InvokeServer(nil, children.Name)
+					end
+
+					for _, children in ipairs(CharacterSelection:GetChildren()) do
+						if children:IsA("Frame") then
+							children.Index.Text = CharacterAppearance[children.Name].Value
+						end
+					end
+
+					CHARACTER_CUSTOMIZATION = true
+				end
+
+				AnimateScreenOptions()
+			end)
+		end
+	end
+end
+
+function SmoothCameraFollow(instanceObject: any)
+	local CameraTweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
+
+	Camera.CameraType = Enum.CameraType.Scriptable
+	Camera.CFrame = instanceObject.CFrame
+
+	MOUSE_CONNECTION = Mouse.Move:Connect(function(...: any)
+		local CameraPosition = instanceObject.CFrame * CFrame.Angles(
+			math.rad(((Mouse.Y - Mouse.ViewSizeY / 2) / Mouse.ViewSizeY) * -10),
+			math.rad(((Mouse.X - Mouse.ViewSizeX / 2) / Mouse.ViewSizeX) * -10),
+			0
+		)
+
+		local CameraPositionTween = TweenService:Create(Camera, CameraTweenInfo, {CFrame = CameraPosition})
+		CameraPositionTween:Play()
+	end)
+
+	AnimateRaceChoice()
+end
+
+local function AnimateLoadingScreen()
+	local TextLabel = LoadingScreen.TextLabel
+	local TextHighlightTween = TweenService:Create(TextLabel, TweenInfo.new(0.25, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0),{TextColor3 = Color3.fromRGB(105, 250, 95)})
+
+	ContentProvider:PreloadAsync(ReplicatedStorage:GetDescendants())
+	task.wait(3)
+
+	TextLabel.Text = "[ COMPLETE ]"
+
+	TextHighlightTween:Play()
+	TextHighlightTween.Completed:Connect(function(playbackState: Enum.PlaybackState)
+		local ScreenTransitionTween = TweenService:Create(LoadingScreen, TweenInfo.new(0.65, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0), {Position = UDim2.fromScale(0.5, -0.5)})
+		TextLabel.Text = ""
+
+		SmoothCameraFollow(MenuCamera)
+		ScreenTransitionTween:Play()
+	end)
+end
+
+AnimateLoadingScreen()
