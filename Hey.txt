@@ -1,10 +1,8 @@
---// ROBLOX SERVICES
 local ContentProvider = game:GetService("ContentProvider")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
---// LOCAL VARIABLES
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -36,8 +34,7 @@ local CHARACTER_CUSTOMIZATION = false
 local MOUSE_CONNECTION = nil
 local CHARACTER_CONNECTION = {}
 
---// Function: AnimateCharacterSelection
---// Purpose: Takes care of the character selection animation, ensuring a smooth transition for user interaction
+--// Character selection animation, ensuring a smooth transition for user interaction
 local function AnimateCharacterSelection()
     local CameraTransitionInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
     local Cache = {}
@@ -117,8 +114,7 @@ local function AnimateCharacterSelection()
     end)
 end
 
---// Function: AnimateScreenOptions
---// Purpose: Manages the appearance of screen options, making the interface more dynamic and interactive
+--// Manages the appearance of screen options, making the interface more dynamic and interactive
 function AnimateScreenOptions()
     local InstanceTweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
     local Cache = {}
@@ -184,8 +180,7 @@ function AnimateScreenOptions()
     end
 end
 
---// Function: AnimateRaceChoice
---// Purpose: Enables the player to choose a race and applies ongoing animations to enhance the selection process
+--// Enables the player to choose a race and applies ongoing animations to enhance the selection process
 local function AnimateRaceChoice()
     local AnimationCache = {}
 
@@ -242,8 +237,7 @@ local function AnimateRaceChoice()
     end
 end
 
---// Function: SmoothCameraFollow
---// Purpose: Provides a smooth following experience for the camera based on player movements
+--// Smooth following experience for the camera based on player movements
 function SmoothCameraFollow(instanceObject)
     local CameraTweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0)
     
@@ -265,8 +259,7 @@ function SmoothCameraFollow(instanceObject)
     AnimateRaceChoice()
 end
 
---// Function: AnimateLoadingScreen
---// Purpose: Handles the loading screen animation, including preloading assets and transitioning to the next screen.
+--// Handles the loading screen animation, including preloading assets and transitioning to the next screen.
 local function AnimateLoadingScreen()
     local TextLabel = LoadingScreen.TextLabel
     local TextHighlightTween = TweenService:Create(TextLabel, TweenInfo.new(0.25, Enum.EasingStyle.Linear, Enum.EasingDirection.In, 0, false, 0), {TextColor3 = Color3.fromRGB(105, 250, 95)})
